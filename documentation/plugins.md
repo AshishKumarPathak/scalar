@@ -125,7 +125,23 @@ Plugins can inject components at specific locations in the API Reference using v
 
 #### Available Views
 
+- `content.start` - Before the Introduction/Info section
 - `content.end` - After the Models section
+
+#### Sidebar Visibility
+
+View components can optionally appear in the sidebar. Add a `sidebar` configuration to control this:
+
+```typescript
+{
+  component: CustomComponent,
+  sidebar: {
+    show: true,       // true = visible in sidebar, false/omitted = hidden
+    label: 'My Page', // Display text in the sidebar
+    icon: 'book',     // Optional icon name
+  },
+}
+```
 
 #### Example
 
@@ -139,9 +155,20 @@ export const FeedbackPlugin = (): ApiReferencePlugin => {
       name: 'feedback-plugin',
       extensions: [],
       views: {
+        'content.start': [
+          {
+            component: CustomComponent,
+            // Show in sidebar
+            sidebar: {
+              show: true,
+              label: 'Getting Started',
+            },
+          },
+        ],
         'content.end': [
           {
             component: CustomComponent,
+            // Not shown in sidebar (omitted)
           },
         ],
       },
@@ -172,6 +199,115 @@ export const FeedbackPlugin = (): ApiReferencePlugin => {
           {
             component: CustomComponent,
             renderer: ReactRenderer,
+          },
+        ],
+      },
+    }
+  }
+}
+```
+
+With sidebar visibility:
+
+```typescript
+import { ReactRenderer } from '@scalar/react-renderer'
+import { CustomComponent } from './components/CustomComponent'
+
+export const FeedbackPlugin = (): ApiReferencePlugin => {
+  return () => {
+    return {
+      name: 'feedback-plugin',
+      extensions: [],
+      views: {
+        'content.start': [
+          {
+            component: CustomComponent,
+            renderer: ReactRenderer,
+            sidebar: {
+              show: true,
+              label: 'Support',
+            },
+          },
+        ],
+      },
+    }
+  }
+}
+```
+
+### Plugin Page Views
+
+Plugins can register **standalone pages** that replace the API endpoint content entirely when navigated to. This is useful for custom pages like "APIs by Workflow", "Getting Started", or any content that doesn't belong inline with the API endpoints.
+
+#### Example
+
+```typescript
+import type { ApiReferencePlugin } from '@scalar/types/api-reference'
+import WorkflowPage from './components/WorkflowPage.vue'
+
+export const WorkflowPlugin = (): ApiReferencePlugin => {
+  return () => {
+    return {
+      name: 'workflow-plugin',
+      extensions: [],
+      views: {
+        'content.end': [
+          {
+            component: WorkflowPage,
+            page: true,
+            slug: 'apis-by-workflow',
+            sidebar: {
+              show: true,
+              label: 'APIs by Workflow',
+            },
+          },
+        ],
+      },
+    }
+  }
+}
+```
+
+#### Page View Options
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `component` | `unknown` | Yes | Vue component (or React component when using a renderer) |
+| `renderer` | `unknown` | No | Custom renderer for non-Vue components (e.g., `ReactRenderer`) |
+| `props` | `Record<string, any>` | No | Additional props passed to the component |
+| `page` | `boolean` | No | When `true`, renders as a standalone page instead of inline |
+| `slug` | `string` | No | URL slug for routing. Defaults to sidebar label slugified |
+| `sidebar` | `object` | No | Sidebar entry configuration |
+
+#### Behavior
+
+- Components with `page: true` are **excluded** from inline rendering.
+- A sidebar entry is created (if `sidebar.show` is `true`) that navigates to the plugin page.
+- Clicking the sidebar entry hides the API endpoints and shows only the plugin page.
+- Clicking any other sidebar entry restores the normal API reference view.
+
+#### With React
+
+```typescript
+import { ReactRenderer } from '@scalar/react-renderer'
+import { WorkflowPage } from './components/WorkflowPage'
+
+export const WorkflowPlugin = (): ApiReferencePlugin => {
+  return () => {
+    return {
+      name: 'workflow-plugin',
+      extensions: [],
+      views: {
+        'content.end': [
+          {
+            component: WorkflowPage,
+            renderer: ReactRenderer,
+            page: true,
+            slug: 'apis-by-workflow',
+            sidebar: {
+              show: true,
+              label: 'APIs by Workflow',
+            },
           },
         ],
       },

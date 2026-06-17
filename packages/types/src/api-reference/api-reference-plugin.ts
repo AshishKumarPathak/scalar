@@ -35,9 +35,37 @@ const viewComponentSchema = z.object({
    * Additional props to pass to the component
    */
   props: z.record(z.string(), z.any()).optional(),
+  /**
+   * Sidebar configuration for this view component.
+   * If provided, an entry will be shown in the sidebar.
+   * Set to false or omit to hide from sidebar.
+   */
+  sidebar: z
+    .object({
+      /** Whether to show in sidebar */
+      show: z.boolean().default(false),
+      /** Label to display in the sidebar */
+      label: z.string(),
+      /** Optional icon name */
+      icon: z.string().optional(),
+    })
+    .optional(),
+  /**
+   * When true, renders this component as a standalone page instead of inline content.
+   * The API endpoints are hidden and only this plugin view is shown when navigated to.
+   */
+  page: z.boolean().optional(),
+  /**
+   * URL slug for this page (used in routing). Defaults to sidebar label slugified.
+   */
+  slug: z.string().optional(),
 })
 
 const viewsSchema = z.object({
+  /**
+   * Renders before the Introduction/Info section
+   */
+  'content.start': z.array(viewComponentSchema).optional(),
   /**
    * Renders after the Models section
    */

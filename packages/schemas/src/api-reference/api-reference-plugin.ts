@@ -1,4 +1,4 @@
-import { type Static, any, array, fn, object, optional, record, string, unknown } from '@scalar/validation'
+import { type Static, any, array, boolean, fn, object, optional, record, string, unknown } from '@scalar/validation'
 
 const openApiExtensionSchema = object({
   name: string({
@@ -26,9 +26,28 @@ const viewComponentSchema = object({
   props: optional(record(string(), any()), {
     typeComment: 'Additional props to pass to the component',
   }),
+  sidebar: optional(
+    object({
+      show: any(),
+      label: string(),
+      icon: optional(string()),
+    }),
+    {
+      typeComment: 'Sidebar configuration. Set show: true to display in sidebar.',
+    },
+  ),
+  page: optional(boolean(), {
+    typeComment: 'When true, renders as a standalone page instead of inline content.',
+  }),
+  slug: optional(string(), {
+    typeComment: 'URL slug for this page (used in routing). Defaults to sidebar label slugified.',
+  }),
 })
 
 const viewsSchema = object({
+  'content.start': optional(array(viewComponentSchema), {
+    typeComment: 'Components to render before the Introduction/Info section',
+  }),
   'content.end': optional(array(viewComponentSchema), {
     typeComment: 'Components to render at specific views in the API Reference',
   }),

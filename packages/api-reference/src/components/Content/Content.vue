@@ -41,6 +41,7 @@ import { AsyncApiTraversedEntry } from '@/components/Content/AsyncApi'
 import { Auth } from '@/components/Content/Auth'
 import TraversedEntry from '@/components/Content/Operations/TraversedEntry.vue'
 import { RenderPlugins } from '@/components/RenderPlugins'
+import RenderPluginPage from '@/components/RenderPlugins/RenderPluginPage.vue'
 import { SectionFlare } from '@/components/SectionFlare'
 import { getXKeysFromObject } from '@/features/specification-extension'
 import {
@@ -56,6 +57,7 @@ const {
   eventBus,
   options,
   authStore,
+  activePluginPage,
 } = defineProps<{
   infoSectionId: string
   /** The subset of the configuration object required for the content component */
@@ -89,6 +91,8 @@ const {
   environment: XScalarEnvironment
   /** Heading id generator for Markdown headings */
   headingSlugGenerator: (heading: Heading) => string
+  /** When set, shows a plugin page instead of the normal API content */
+  activePluginPage?: string
 }>()
 
 /** Generate all client options so that it can be shared between the top client picker and the operations */
@@ -197,121 +201,140 @@ onMounted(() => {
   <SectionFlare />
 
   <div class="narrow-references-container">
-    <slot name="start" />
+    <!-- Plugin page mode: show only the plugin page content -->
+    <template v-if="activePluginPage">
+      <RenderPluginPage
+        :options
+        :pageSlug="activePluginPage"
+        viewName="content.start" />
+      <RenderPluginPage
+        :options
+        :pageSlug="activePluginPage"
+        viewName="content.end" />
+    </template>
 
-    <!-- Introduction -->
+    <!-- Normal mode: show API reference content -->
+    <template v-else>
+      <slot name="start" />
 
-    <InfoBlock
-      :id="infoSectionId"
-      :documentDownloadType="options.documentDownloadType"
-      :documentExtensions
-      :documentType
-      :documentUrl="document?.['x-scalar-original-source-url']"
-      :eventBus
-      :externalDocs="openApiDocument?.externalDocs"
-      :headingSlugGenerator
-      :info="document?.info"
-      :infoExtensions
-      :layout="options.layout"
-      :specificationVersion>
-      <template #selectors>
-        <!-- Server Selector -->
-        <ScalarErrorBoundary>
-          <IntroductionCardItem
-            v-if="servers?.length"
-            class="scalar-reference-intro-server scalar-client introduction-card-item text-base leading-normal [--scalar-address-bar-height:0px]">
-            <ServerSelector
-              :eventBus
-              :selectedServer
-              :servers />
-          </IntroductionCardItem>
-        </ScalarErrorBoundary>
+      <!-- Render plugins at content.start view -->
+      <RenderPlugins
+        :options
+        viewName="content.start" />
 
-        <!-- AsyncAPI Server Selector -->
-        <ScalarErrorBoundary>
-          <IntroductionCardItem
-            v-if="asyncApiServers.length"
-            class="scalar-reference-intro-server scalar-client introduction-card-item text-base leading-normal [--scalar-address-bar-height:0px]">
-            <AsyncApiServerSelector
-              :eventBus
-              :selectedServer="asyncApiSelectedServer"
-              :servers="asyncApiServers" />
-          </IntroductionCardItem>
-        </ScalarErrorBoundary>
+      <!-- Introduction -->
 
-        <!-- Auth selector -->
-        <ScalarErrorBoundary>
-          <IntroductionCardItem
-            v-if="document && !options.hideTestRequestButton"
-            class="scalar-reference-intro-auth scalar-client introduction-card-item leading-normal">
-            <Auth
-              :authStore
-              :document="clientDocument"
-              :environment
-              :eventBus
-              :options
-              :securitySchemes
-              :selectedServer />
-          </IntroductionCardItem>
-        </ScalarErrorBoundary>
+      <InfoBlock
+        :id="infoSectionId"
+        :documentDownloadType="options.documentDownloadType"
+        :documentExtensions
+        :documentType
+        :documentUrl="document?.['x-scalar-original-source-url']"
+        :eventBus
+        :externalDocs="openApiDocument?.externalDocs"
+        :headingSlugGenerator
+        :info="document?.info"
+        :infoExtensions
+        :layout="options.layout"
+        :specificationVersion>
+        <template #selectors>
+          <!-- Server Selector -->
+          <ScalarErrorBoundary>
+            <IntroductionCardItem
+              v-if="servers?.length"
+              class="scalar-reference-intro-server scalar-client introduction-card-item text-base leading-normal [--scalar-address-bar-height:0px]">
+              <ServerSelector
+                :eventBus
+                :selectedServer
+                :servers />
+            </IntroductionCardItem>
+          </ScalarErrorBoundary>
 
-        <!-- Custom SDK installation instructions, or the generic client selector -->
-        <ScalarErrorBoundary>
-          <IntroductionCardItem
-            v-if="sdkInstallation.length"
-            class="introduction-card-item scalar-reference-intro-clients">
-            <SdkInstallationInstructions
-              class="introduction-card-item scalar-reference-intro-clients"
-              :xScalarSdkInstallation="sdkInstallation" />
-          </IntroductionCardItem>
-          <IntroductionCardItem
-            v-else-if="clientOptions.length && !asyncApiDocument"
-            class="introduction-card-item scalar-reference-intro-clients">
-            <ClientSelector
-              class="introduction-card-item scalar-reference-intro-clients"
-              :clientOptions
-              :eventBus
-              :selectedClient="xScalarDefaultClient" />
-          </IntroductionCardItem>
-        </ScalarErrorBoundary>
-      </template>
-    </InfoBlock>
+          <!-- AsyncAPI Server Selector -->
+          <ScalarErrorBoundary>
+            <IntroductionCardItem
+              v-if="asyncApiServers.length"
+              class="scalar-reference-intro-server scalar-client introduction-card-item text-base leading-normal [--scalar-address-bar-height:0px]">
+              <AsyncApiServerSelector
+                :eventBus
+                :selectedServer="asyncApiSelectedServer"
+                :servers="asyncApiServers" />
+            </IntroductionCardItem>
+          </ScalarErrorBoundary>
 
-    <!-- Render traversed operations and webhooks -->
-    <!-- Use recursive component for cleaner rendering -->
-    <TraversedEntry
-      v-if="items.length && openApiDocument"
-      :authStore
-      :clientOptions
-      :document="openApiDocument"
-      :entries="items"
-      :eventBus
-      :expandedItems
-      :options
-      :securitySchemes
-      :selectedClient="xScalarDefaultClient"
-      :selectedServer>
-    </TraversedEntry>
+          <!-- Auth selector -->
+          <ScalarErrorBoundary>
+            <IntroductionCardItem
+              v-if="document && !options.hideTestRequestButton"
+              class="scalar-reference-intro-auth scalar-client introduction-card-item leading-normal">
+              <Auth
+                :authStore
+                :document="clientDocument"
+                :environment
+                :eventBus
+                :options
+                :securitySchemes
+                :selectedServer />
+            </IntroductionCardItem>
+          </ScalarErrorBoundary>
 
-    <!-- AsyncAPI: render channels grouped by tag, mirroring the sidebar order. -->
-    <AsyncApiTraversedEntry
-      v-else-if="items.length && asyncApiDocument"
-      :document="asyncApiDocument"
-      :entries="items"
-      :eventBus
-      :expandedItems
-      :options />
+          <!-- Custom SDK installation instructions, or the generic client selector -->
+          <ScalarErrorBoundary>
+            <IntroductionCardItem
+              v-if="sdkInstallation.length"
+              class="introduction-card-item scalar-reference-intro-clients">
+              <SdkInstallationInstructions
+                class="introduction-card-item scalar-reference-intro-clients"
+                :xScalarSdkInstallation="sdkInstallation" />
+            </IntroductionCardItem>
+            <IntroductionCardItem
+              v-else-if="clientOptions.length && !asyncApiDocument"
+              class="introduction-card-item scalar-reference-intro-clients">
+              <ClientSelector
+                class="introduction-card-item scalar-reference-intro-clients"
+                :clientOptions
+                :eventBus
+                :selectedClient="xScalarDefaultClient" />
+            </IntroductionCardItem>
+          </ScalarErrorBoundary>
+        </template>
+      </InfoBlock>
 
-    <!-- Render plugins at content.end view -->
-    <RenderPlugins
-      :options
-      viewName="content.end" />
+      <!-- Render traversed operations and webhooks -->
+      <TraversedEntry
+        v-if="items.length && openApiDocument"
+        :authStore
+        :clientOptions
+        :document="openApiDocument"
+        :entries="items"
+        :eventBus
+        :expandedItems
+        :options
+        :securitySchemes
+        :selectedClient="xScalarDefaultClient"
+        :selectedServer>
+      </TraversedEntry>
 
-    <slot name="end" />
-    <!-- Placeholder content to allow the active item to be scrolled to the top while the rest of the content is lazy loaded -->
-    <div
-      v-if="!firstLazyLoadComplete"
-      class="h-dvh"></div>
+      <!-- AsyncAPI: render channels grouped by tag, mirroring the sidebar order. -->
+      <AsyncApiTraversedEntry
+        v-else-if="items.length && asyncApiDocument"
+        :document="asyncApiDocument"
+        :entries="items"
+        :eventBus
+        :expandedItems
+        :options />
+
+      <!-- Render plugins at content.end view -->
+      <RenderPlugins
+        :options
+        viewName="content.end" />
+
+      <slot name="end" />
+      <!-- Placeholder content to allow the active item to be scrolled to the top while the rest of the content is lazy loaded -->
+      <div
+        v-if="!firstLazyLoadComplete"
+        class="h-dvh"></div>
+    </template>
   </div>
 </template>
 

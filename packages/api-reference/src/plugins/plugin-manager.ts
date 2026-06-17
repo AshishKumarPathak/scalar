@@ -46,7 +46,7 @@ export const createPluginManager = ({ plugins = [] }: CreatePluginManagerParams)
     /**
      * Get all components for a specific view from registered plugins
      */
-    getViewComponents: (viewName: 'content.end'): ViewComponent[] => {
+    getViewComponents: (viewName: 'content.start' | 'content.end'): ViewComponent[] => {
       const components: ViewComponent[] = []
 
       for (const plugin of registeredPlugins.values()) {
@@ -99,6 +99,59 @@ export const createPluginManager = ({ plugins = [] }: CreatePluginManagerParams)
       }
 
       return apiClientPlugins
+    },
+
+    /**
+     * Get all sidebar entries from plugin views
+     */
+    getSidebarEntries: (): { label: string; icon?: string; viewName: string; index: number; page?: boolean; slug?: string }[] => {
+      const entries: { label: string; icon?: string; viewName: string; index: number; page?: boolean; slug?: string }[] = []
+
+      for (const plugin of registeredPlugins.values()) {
+        const viewNames = ['content.start', 'content.end'] as const
+        for (const viewName of viewNames) {
+          const viewComponents = plugin.views?.[viewName]
+          if (viewComponents) {
+            viewComponents.forEach((vc: ViewComponent, index: number) => {
+              if (vc.sidebar?.show && vc.sidebar?.label) {
+                entries.push({
+                  label: vc.sidebar.label,
+                  icon: vc.sidebar.icon,
+                  viewName,
+                  index,
+                  page: vc.page,
+                  slug: vc.slug ?? vc.sidebar.label.toLowerCase().replace(/\s+/g, '-'),
+                })
+              }
+            })
+          }
+        }
+      }
+
+      return entries
+    },
+
+    /**
+     * Get all page-level view components (those with page: true)
+     */
+    getPageViewComponents: (viewName: 'content.start' | 'content.end'): (ViewComponent & { slug: string })[] => {
+      const pages: (ViewComponent & { slug: string })[] = []
+
+      for (const plugin of registeredPlugins.values()) {
+        const viewComponents = plugin.views?.[viewName]
+        if (viewComponents) {
+          viewComponents.forEach((vc: ViewComponent) => {
+            if (vc.page) {
+              pages.push({
+                ...vc,
+                slug: vc.slug ?? vc.sidebar?.label?.toLowerCase().replace(/\s+/g, '-') ?? 'plugin-page',
+              })
+            }
+          })
+        }
+      }
+
+      return pages
     },
   }
 }

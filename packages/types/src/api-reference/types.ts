@@ -199,6 +199,16 @@ export type ViewComponent = {
   component: unknown
   renderer?: unknown
   props?: Record<string, any>
+  sidebar?: {
+    show: boolean
+    label: string
+    icon?: string
+  }
+  /** When true, renders this component as a standalone page instead of inline content.
+   * The API endpoints are hidden and only this plugin view is shown when navigated to. */
+  page?: boolean
+  /** URL slug for this page (used in hash routing). Defaults to sidebar label slugified. */
+  slug?: string
 }
 
 export type LifecycleHooks = {
@@ -211,6 +221,7 @@ export type ApiReferencePlugin = () => {
   name: string
   extensions: SpecificationExtension[]
   views?: {
+    'content.start'?: ViewComponent[]
     'content.end'?: ViewComponent[]
   }
   hooks?: LifecycleHooks

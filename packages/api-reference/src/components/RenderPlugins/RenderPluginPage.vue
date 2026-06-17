@@ -3,25 +3,25 @@ import { ScalarErrorBoundary } from '@scalar/components/error-boundary'
 
 import { usePluginManager } from '@/plugins'
 
-const { viewName, options } = defineProps<{
+const { viewName, options, pageSlug } = defineProps<{
   viewName: 'content.start' | 'content.end'
   options: Record<string, any>
+  pageSlug: string
 }>()
 
-const { getViewComponents } = usePluginManager()
-const components = getViewComponents(viewName).filter((c) => !c.page)
+const { getPageViewComponents } = usePluginManager()
+const pageComponents = getPageViewComponents(viewName).filter((p) => p.slug === pageSlug)
 </script>
 
 <template>
-  <template v-if="components.length">
-    <div class="plugin-view">
+  <template v-if="pageComponents.length">
+    <div class="plugin-page-view">
       <template
-        v-for="(item, _index) in components"
+        v-for="(item, _index) in pageComponents"
         :key="_index">
         <ScalarErrorBoundary>
-          <div :id="`plugin-view-${viewName}-${_index}`">
+          <div :id="`plugin-page-${pageSlug}`">
             <template v-if="item.renderer">
-              <!-- Custom renderer (e.g. React) -->
               <component
                 :is="item.renderer"
                 v-bind="{
@@ -31,7 +31,6 @@ const components = getViewComponents(viewName).filter((c) => !c.page)
                 }" />
             </template>
             <template v-else>
-              <!-- Vue component -->
               <component
                 :is="item.component"
                 v-bind="{ options, ...item.props }" />

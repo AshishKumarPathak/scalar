@@ -16,16 +16,21 @@ import { usePluginManager } from '@/plugins'
 describe('RenderPlugins', () => {
   const mockOptions = { theme: 'dark', layout: 'modern' }
 
+  const createMockPluginManager = (components: any[] = []) => ({
+    getViewComponents: vi.fn().mockReturnValue(components),
+    getPageViewComponents: vi.fn().mockReturnValue([]),
+    getSpecificationExtensions: vi.fn(),
+    notifyInit: vi.fn(),
+    notifyConfigChange: vi.fn(),
+    notifyDestroy: vi.fn(),
+    getApiClientPlugins: vi.fn().mockReturnValue([]),
+        getPageViewComponents: vi.fn().mockReturnValue([]),
+    getSidebarEntries: vi.fn().mockReturnValue([]),
+  })
+
   describe('rendering', () => {
     it('renders nothing when no components are registered', () => {
-      vi.mocked(usePluginManager).mockReturnValue({
-        getViewComponents: vi.fn().mockReturnValue([]),
-        getSpecificationExtensions: vi.fn(),
-        notifyInit: vi.fn(),
-        notifyConfigChange: vi.fn(),
-        notifyDestroy: vi.fn(),
-        getApiClientPlugins: vi.fn().mockReturnValue([]),
-      })
+      vi.mocked(usePluginManager).mockReturnValue(createMockPluginManager([]))
 
       const wrapper = mount(RenderPlugins, {
         props: {
@@ -36,6 +41,37 @@ describe('RenderPlugins', () => {
 
       expect(wrapper.find('.plugin-view').exists()).toBe(false)
       expect(wrapper.html()).toBe('<!--v-if-->')
+    })
+
+    it('filters out page components from inline rendering', () => {
+      const InlineComponent = {
+        name: 'InlineComponent',
+        template: '<div class="inline">Inline</div>',
+        props: ['options'],
+      }
+
+      const PageComponent = {
+        name: 'PageComponent',
+        template: '<div class="page">Page</div>',
+        props: ['options'],
+      }
+
+      vi.mocked(usePluginManager).mockReturnValue(
+        createMockPluginManager([
+          { component: InlineComponent },
+          { component: PageComponent, page: true, slug: 'my-page' },
+        ]),
+      )
+
+      const wrapper = mount(RenderPlugins, {
+        props: {
+          viewName: 'content.end',
+          options: mockOptions,
+        },
+      })
+
+      expect(wrapper.find('.inline').exists()).toBe(true)
+      expect(wrapper.find('.page').exists()).toBe(false)
     })
 
     it('renders a Vue component without custom renderer', () => {
@@ -56,6 +92,8 @@ describe('RenderPlugins', () => {
         notifyConfigChange: vi.fn(),
         notifyDestroy: vi.fn(),
         getApiClientPlugins: vi.fn().mockReturnValue([]),
+        getPageViewComponents: vi.fn().mockReturnValue([]),
+        getSidebarEntries: vi.fn().mockReturnValue([]),
       })
 
       const wrapper = mount(RenderPlugins, {
@@ -91,6 +129,8 @@ describe('RenderPlugins', () => {
         notifyConfigChange: vi.fn(),
         notifyDestroy: vi.fn(),
         getApiClientPlugins: vi.fn().mockReturnValue([]),
+        getPageViewComponents: vi.fn().mockReturnValue([]),
+        getSidebarEntries: vi.fn().mockReturnValue([]),
       })
 
       const wrapper = mount(RenderPlugins, {
@@ -131,6 +171,8 @@ describe('RenderPlugins', () => {
         notifyConfigChange: vi.fn(),
         notifyDestroy: vi.fn(),
         getApiClientPlugins: vi.fn().mockReturnValue([]),
+        getPageViewComponents: vi.fn().mockReturnValue([]),
+        getSidebarEntries: vi.fn().mockReturnValue([]),
       })
 
       mount(RenderPlugins, {
@@ -173,6 +215,8 @@ describe('RenderPlugins', () => {
         notifyConfigChange: vi.fn(),
         notifyDestroy: vi.fn(),
         getApiClientPlugins: vi.fn().mockReturnValue([]),
+        getPageViewComponents: vi.fn().mockReturnValue([]),
+        getSidebarEntries: vi.fn().mockReturnValue([]),
       })
 
       mount(RenderPlugins, {
@@ -220,6 +264,8 @@ describe('RenderPlugins', () => {
         notifyConfigChange: vi.fn(),
         notifyDestroy: vi.fn(),
         getApiClientPlugins: vi.fn().mockReturnValue([]),
+        getPageViewComponents: vi.fn().mockReturnValue([]),
+        getSidebarEntries: vi.fn().mockReturnValue([]),
       })
 
       mount(RenderPlugins, {
@@ -268,6 +314,8 @@ describe('RenderPlugins', () => {
         notifyConfigChange: vi.fn(),
         notifyDestroy: vi.fn(),
         getApiClientPlugins: vi.fn().mockReturnValue([]),
+        getPageViewComponents: vi.fn().mockReturnValue([]),
+        getSidebarEntries: vi.fn().mockReturnValue([]),
       })
 
       const wrapper = mount(RenderPlugins, {
@@ -310,6 +358,8 @@ describe('RenderPlugins', () => {
         notifyConfigChange: vi.fn(),
         notifyDestroy: vi.fn(),
         getApiClientPlugins: vi.fn().mockReturnValue([]),
+        getPageViewComponents: vi.fn().mockReturnValue([]),
+        getSidebarEntries: vi.fn().mockReturnValue([]),
       })
 
       const wrapper = mount(RenderPlugins, {
@@ -340,6 +390,8 @@ describe('RenderPlugins', () => {
         notifyConfigChange: vi.fn(),
         notifyDestroy: vi.fn(),
         getApiClientPlugins: vi.fn().mockReturnValue([]),
+        getPageViewComponents: vi.fn().mockReturnValue([]),
+        getSidebarEntries: vi.fn().mockReturnValue([]),
       })
 
       const wrapper = mount(RenderPlugins, {
@@ -370,6 +422,8 @@ describe('RenderPlugins', () => {
         notifyConfigChange: vi.fn(),
         notifyDestroy: vi.fn(),
         getApiClientPlugins: vi.fn().mockReturnValue([]),
+        getPageViewComponents: vi.fn().mockReturnValue([]),
+        getSidebarEntries: vi.fn().mockReturnValue([]),
       })
 
       mount(RenderPlugins, {
@@ -393,6 +447,8 @@ describe('RenderPlugins', () => {
         notifyConfigChange: vi.fn(),
         notifyDestroy: vi.fn(),
         getApiClientPlugins: vi.fn().mockReturnValue([]),
+        getPageViewComponents: vi.fn().mockReturnValue([]),
+        getSidebarEntries: vi.fn().mockReturnValue([]),
       })
 
       mount(RenderPlugins, {
@@ -421,6 +477,8 @@ describe('RenderPlugins', () => {
         notifyConfigChange: vi.fn(),
         notifyDestroy: vi.fn(),
         getApiClientPlugins: vi.fn().mockReturnValue([]),
+        getPageViewComponents: vi.fn().mockReturnValue([]),
+        getSidebarEntries: vi.fn().mockReturnValue([]),
       })
 
       const wrapper = mount(RenderPlugins, {
@@ -448,6 +506,8 @@ describe('RenderPlugins', () => {
         notifyConfigChange: vi.fn(),
         notifyDestroy: vi.fn(),
         getApiClientPlugins: vi.fn().mockReturnValue([]),
+        getPageViewComponents: vi.fn().mockReturnValue([]),
+        getSidebarEntries: vi.fn().mockReturnValue([]),
       })
 
       const wrapper = mount(RenderPlugins, {
@@ -476,6 +536,8 @@ describe('RenderPlugins', () => {
         notifyConfigChange: vi.fn(),
         notifyDestroy: vi.fn(),
         getApiClientPlugins: vi.fn().mockReturnValue([]),
+        getPageViewComponents: vi.fn().mockReturnValue([]),
+        getSidebarEntries: vi.fn().mockReturnValue([]),
       })
 
       const wrapper = mount(RenderPlugins, {

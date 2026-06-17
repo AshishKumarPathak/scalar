@@ -272,6 +272,10 @@ provide(PLUGIN_MANAGER_SYMBOL, pluginManager)
 pluginManager.notifyInit(mergedConfig.value)
 
 watch(mergedConfig, (config) => pluginManager.notifyConfigChange(config))
+
+/** Active plugin page slug — when set, Content shows plugin page instead of API endpoints */
+const activePluginPage = ref<string | undefined>(undefined)
+
 // ---------------------------------------------------------------------------
 /** Navigation State Handling */
 
@@ -438,7 +442,15 @@ const sidebarItems = computed<TraversedEntry[]>(() => {
     }
   }
 
-  return docItems
+  // Append plugin page entries to sidebar
+  const pluginPageEntries = pluginManager.getSidebarEntries().filter((e) => e.page)
+  const pluginItems = pluginPageEntries.map((entry) => ({
+    id: `plugin-page/${entry.slug}`,
+    title: entry.label,
+    type: 'text' as const,
+  }))
+
+  return [...docItems, ...pluginItems]
 })
 
 /** Find the sidebar entry that represents the introduction section */
@@ -917,6 +929,16 @@ eventBus.on('ui:download:document', ({ format }) => {
  *        Open all parents and scroll to the operation
  */
 const handleSelectSidebarEntry = (id: string, caller?: 'sidebar') => {
+  // Handle plugin page navigation
+  if (id.startsWith('plugin-page/')) {
+    const slug = id.replace('plugin-page/', '')
+    activePluginPage.value = slug
+    return
+  }
+
+  // Clear plugin page when navigating back to API content
+  activePluginPage.value = undefined
+
   const item = sidebarState.getEntryById(id)
 
   updatePageTitle(id)
@@ -1237,6 +1259,7 @@ const showMCPButton = computed(() => {
         class="references-rendered"
         :inert="agent.showAgent.value">
         <Content
+          :activePluginPage="activePluginPage"
           :authStore="clientStore.auth"
           :clientDocument="clientStore.workspace.activeDocument"
           :document="workspaceStore.workspace.activeDocument"
