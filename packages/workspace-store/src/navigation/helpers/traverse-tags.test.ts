@@ -1,7 +1,7 @@
 import type { HttpMethod } from '@scalar/helpers/http/http-methods'
 import { assert, describe, expect, it } from 'vitest'
 
-import type { TagsMap } from '@/navigation/types'
+import type { TagsMap, TraverseSpecOptions } from '@/navigation/types'
 import type { TraversedEntry, TraversedTag } from '@/schemas/navigation'
 import type { OpenApiDocument, TagObject } from '@/schemas/v3.1/strict/openapi-document'
 
@@ -550,5 +550,182 @@ describe('traverseTags', () => {
     })
     expect(result).toHaveLength(1)
     expect(result[0]?.title).toBe('visible')
+  })
+
+  describe('OpenAPI 3.2 parent-based nesting', () => {
+    const generateId = (props: Parameters<TraverseSpecOptions['generateId']>[0]) =>
+      props.type === 'tag' ? (props.tag.name ?? '') : 'unknown-id'
+
+    it('nests a child tag inside its parent', () => {
+      const document: OpenApiDocument = {
+        openapi: '3.1.0',
+        info: { title: 'Test', version: '1.0.0' },
+        paths: {},
+        tags: [{ name: 'Catalog' }, { name: 'Payer Catalog', parent: 'Catalog' } as TagObject & { parent: string }],
+        'x-scalar-original-document-hash': '',
+      }
+
+      const tagsMap: TagsMap = new Map([
+        [
+          'Catalog',
+          {
+            id: 'Catalog',
+            parentId: 'doc-1',
+            tag: { name: 'Catalog' },
+            entries: [createMockEntry('List Catalogs')],
+          },
+        ],
+        [
+          'Payer Catalog',
+          {
+            id: 'Payer Catalog',
+            parentId: 'doc-1',
+            tag: { name: 'Payer Catalog', parent: 'Catalog' } as TagObject & { parent: string },
+            entries: [createMockEntry('Get Payer Catalog')],
+          },
+        ],
+      ])
+
+      const result = traverseTags({ document, tagsMap, documentId: 'doc-1', options: { generateId } })
+
+      // Only the parent tag should be at the top level
+      expect(result).toHaveLength(1)
+      assert(result[0]?.type === 'tag')
+      expect(result[0].name).toBe('Catalog')
+
+      // The child tag should be nested inside the parent's children
+      const children = result[0].children ?? []
+      const childTag = children.find((c) => c.type === 'tag' && c.name === 'Payer Catalog')
+      expect(childTag).toBeDefined()
+      assert(childTag?.type === 'tag')
+      expect(childTag.children).toHaveLength(1)
+      expect(childTag.children?.[0]?.title).toBe('Get Payer Catalog')
+    })
+
+    it('supports multiple children under the same parent', () => {
+      const document: OpenApiDocument = {
+        openapi: '3.1.0',
+        info: { title: 'Test', version: '1.0.0' },
+        paths: {},
+        tags: [
+          { name: 'Catalog' },
+          { name: 'Payer Catalog', parent: 'Catalog' } as TagObject & { parent: string },
+          { name: 'Provider Catalog', parent: 'Catalog' } as TagObject & { parent: string },
+        ],
+        'x-scalar-original-document-hash': '',
+      }
+
+      const tagsMap: TagsMap = new Map([
+        ['Catalog', { id: 'Catalog', parentId: 'doc-1', tag: { name: 'Catalog' }, entries: [] }],
+        [
+          'Payer Catalog',
+          {
+            id: 'Payer Catalog',
+            parentId: 'doc-1',
+            tag: { name: 'Payer Catalog', parent: 'Catalog' } as TagObject & { parent: string },
+            entries: [createMockEntry('Get Payer')],
+          },
+        ],
+        [
+          'Provider Catalog',
+          {
+            id: 'Provider Catalog',
+            parentId: 'doc-1',
+            tag: { name: 'Provider Catalog', parent: 'Catalog' } as TagObject & { parent: string },
+            entries: [createMockEntry('Get Provider')],
+          },
+        ],
+      ])
+
+      const result = traverseTags({ document, tagsMap, documentId: 'doc-1', options: { generateId } })
+
+      expect(result).toHaveLength(1)
+      assert(result[0]?.type === 'tag')
+      const nestedTags = (result[0].children ?? []).filter((c) => c.type === 'tag')
+      expect(nestedTags).toHaveLength(2)
+      expect(nestedTags.map((t) => t.title)).toContain('Payer Catalog')
+      expect(nestedTags.map((t) => t.title)).toContain('Provider Catalog')
+    })
+
+    it('leaves tags without parent at the top level', () => {
+      const document: OpenApiDocument = {
+        openapi: '3.1.0',
+        info: { title: 'Test', version: '1.0.0' },
+        paths: {},
+        tags: [
+          { name: 'Standalone' },
+          { name: 'Parent' },
+          { name: 'Child', parent: 'Parent' } as TagObject & { parent: string },
+        ],
+        'x-scalar-original-document-hash': '',
+      }
+
+      const tagsMap: TagsMap = new Map([
+        [
+          'Standalone',
+          { id: 'Standalone', parentId: 'doc-1', tag: { name: 'Standalone' }, entries: [createMockEntry('Op A')] },
+        ],
+        ['Parent', { id: 'Parent', parentId: 'doc-1', tag: { name: 'Parent' }, entries: [] }],
+        [
+          'Child',
+          {
+            id: 'Child',
+            parentId: 'doc-1',
+            tag: { name: 'Child', parent: 'Parent' } as TagObject & { parent: string },
+            entries: [createMockEntry('Op B')],
+          },
+        ],
+      ])
+
+      const result = traverseTags({ document, tagsMap, documentId: 'doc-1', options: { generateId } })
+
+      // Standalone and Parent at top level; Child nested inside Parent
+      expect(result).toHaveLength(2)
+      const names = result.map((r) => r.title)
+      expect(names).toContain('Standalone')
+      expect(names).toContain('Parent')
+      expect(names).not.toContain('Child')
+    })
+
+    it('ignores a parent reference that does not exist in the document', () => {
+      const document: OpenApiDocument = {
+        openapi: '3.1.0',
+        info: { title: 'Test', version: '1.0.0' },
+        paths: {},
+        tags: [{ name: 'Orphan', parent: 'NonExistent' } as TagObject & { parent: string }],
+        'x-scalar-original-document-hash': '',
+      }
+
+      const tagsMap: TagsMap = new Map([
+        [
+          'Orphan',
+          {
+            id: 'Orphan',
+            parentId: 'doc-1',
+            tag: { name: 'Orphan', parent: 'NonExistent' } as TagObject & { parent: string },
+            entries: [createMockEntry('Op')],
+          },
+        ],
+      ])
+
+      const result = traverseTags({ document, tagsMap, documentId: 'doc-1', options: { generateId } })
+
+      // Orphan stays at top level since its parent doesn't exist
+      expect(result).toHaveLength(1)
+      expect(result[0]?.title).toBe('Orphan')
+    })
+
+    it('is fully backward compatible when no parent fields are present', () => {
+      const document = createMockDocument()
+      const tagsMap: TagsMap = new Map([
+        ['tag-a', { id: 'tag-a', parentId: 'doc-1', tag: { name: 'tag-a' }, entries: [createMockEntry('Op A')] }],
+        ['tag-b', { id: 'tag-b', parentId: 'doc-1', tag: { name: 'tag-b' }, entries: [createMockEntry('Op B')] }],
+      ])
+
+      const result = traverseTags({ document, tagsMap, documentId: 'doc-1', options: { generateId } })
+
+      expect(result).toHaveLength(2)
+      expect(result.map((r) => r.title)).toEqual(['tag-a', 'tag-b'])
+    })
   })
 })

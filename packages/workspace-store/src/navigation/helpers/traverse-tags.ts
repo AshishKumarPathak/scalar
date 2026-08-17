@@ -182,10 +182,48 @@ const getSortedTagEntries = ({
 }
 
 /**
+ * Applies OpenAPI 3.2 `parent` nesting to a flat list of tag entries.
+ *
+ * When tags in the document declare a `parent` field (OpenAPI 3.2), child tag
+ * entries are moved inside their parent's `children` array so the sidebar
+ * renders a proper hierarchy. Tags without a `parent` stay at the top level.
+ * Unknown parent references are silently ignored (the child stays top-level).
+ *
+ * @param entries - Flat list of tag entries produced by getSortedTagEntries
+ * @param documentTags - The raw tag objects from the OpenAPI document (may include `parent`)
+ * @returns A new list with child tags nested inside their parents
+ */
+const applyParentNesting = (entries: TraversedTag[], documentTags: TagObject[]): TraversedTag[] => {
+  // Build a lookup from tag name → entry
+  const byName = new Map<string, TraversedTag>(entries.map((e) => [e.name, e]))
+
+  // Build a set of tag names that are children of another tag
+  const childNames = new Set<string>()
+
+  for (const docTag of documentTags) {
+    const parentName = (docTag as TagObject & { parent?: string }).parent
+    if (!parentName) continue
+
+    const childEntry = byName.get(docTag.name)
+    const parentEntry = byName.get(parentName)
+
+    if (!childEntry || !parentEntry) continue
+
+    // Nest the child inside the parent's children, before the parent's operations
+    parentEntry.children = [...(parentEntry.children ?? []), childEntry]
+    childNames.add(docTag.name)
+  }
+
+  // Return only top-level entries (those that are not children of another tag)
+  return entries.filter((e) => !childNames.has(e.name))
+}
+
+/**
  * Traverses the tags map to create navigation entries, handling both grouped and ungrouped tags.
  *
  * This function processes the OpenAPI document's tags to:
  * - Handle tag groups if specified via x-tagGroups
+ * - Handle OpenAPI 3.2 `parent` field for nested tags
  * - Sort tags and their operations according to provided sorters
  * - Create navigation entries for each tag or tag group
  */
@@ -232,7 +270,7 @@ export const traverseTags = ({
   // Ungrouped regular tags
   const keys = Array.from(tagsMap.keys())
 
-  const tags = getSortedTagEntries({
+  const flatEntries = getSortedTagEntries({
     _keys: keys,
     tagsMap,
     options: { generateId, tagsSorter, operationsSorter },
@@ -240,5 +278,9 @@ export const traverseTags = ({
     sortOrder: document['x-scalar-order'],
   })
 
-  return tags
+  // Apply OpenAPI 3.2 parent-based nesting when any tag declares a `parent` field
+  const documentTags = document.tags ?? []
+  const hasParentNesting = documentTags.some((t) => (t as TagObject & { parent?: string }).parent)
+
+  return hasParentNesting ? applyParentNesting(flatEntries as TraversedTag[], documentTags) : flatEntries
 }
